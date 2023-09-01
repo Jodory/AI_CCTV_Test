@@ -120,10 +120,15 @@ def process_backup(frame, timeData):
             cv2.imwrite(f'camera/process/{timeData}.jpg', output)
             process_backup_is_running = False
 
+
+results = []
+
+
 if __name__ == '__main__':
     # load model
     face_detector = cv2.FaceDetectorYN.create("face_detection_yunet_2023mar.onnx", "", (320, 320))    
     # face_detector = cv2.FaceDetectorYN.create(model="face_detection_yunet_2023mar.onnx", config="", input_size=(320, 320), backend_id=3, target_id=0)
+
     # Camera
     cap = cv2.VideoCapture(0) 
     if not cap.isOpened():
@@ -158,7 +163,7 @@ if __name__ == '__main__':
                 process_thread_is_running = True
                 send_process_thread.start()
             elif not process_backup_is_running:
-                process_backup_is_running = True
+                process_thread_is_running = True
                 process_backup_thread.start()
         cap.release()
         

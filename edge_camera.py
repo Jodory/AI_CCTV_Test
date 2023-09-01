@@ -18,8 +18,10 @@ def send_original(frame, timeData):
     OriginFrame = frame.copy()
     OriginURL = "http://bangwol08.iptime.org:20002/camera/original"
     _, img_encoded = cv2.imencode(".jpg", OriginFrame)
+    '''
     requests.post(OriginURL, data={'time': timeData, 'cameraID': cameraID},
                   files={'frame': ('image.jpg', img_encoded, 'image/jpeg')})
+                  '''
     cv2.imwrite(f'camera/original/{timeData}.jpg', frame)
 
 def send_process(frame, timeData, face_detector, count, tick, constancy, instability):
@@ -78,10 +80,11 @@ def send_process(frame, timeData, face_detector, count, tick, constancy, instabi
             frame = output
 
             ProURL = "http://bangwol08.iptime.org:20002/camera/process"
-
+            '''
             _, img_encoded = cv2.imencode(".jpg", frame)
             requests.post(ProURL, data={'time': timeData, 'cameraID': cameraID},
                           files={'frame': ('image.jpg', img_encoded, 'image/jpeg')})
+                          '''
             cv2.imwrite(f'camera/process/{timeData}.jpg', output)
             process_thread_is_running = False
 
@@ -126,7 +129,8 @@ if __name__ == '__main__':
     if not cap.isOpened():
         print('Error: Camera is not open.')
         exit()
-    results = 0
+    results = []
+    results_num = 0
     # if Camera is open --> Start to send original / process frame
     while cap.isOpened():
         # camera Id
@@ -154,9 +158,10 @@ if __name__ == '__main__':
             if not process_thread_is_running:
                 process_thread_is_running = True
                 send_process_thread.start()
-            elif not process_thread_is_running:
+            elif not process_thread_is_running and results_num % 2 == 0:
                 process_thread_is_running = True
                 process_backup_thread.start()
+                results_num += 1
         cap.release()
         
 

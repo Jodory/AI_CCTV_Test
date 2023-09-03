@@ -8,20 +8,32 @@ from datetime import datetime
 import requests
 import threading
 import subprocess
-#from ultralytics import YOLO
+# import urllib3
+# urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+'''
+from requests.adapters import HTTPAdapter
+from requests.sessions import Session
 
+# Session 객체 생성 및 설정
+session = Session()
+adapter = HTTPAdapter(pool_connections=100, pool_maxsize=100)  # 동시 연결 수를 100으로 설정
+session.mount("http://", adapter)
+session.mount("https://", adapter)
+
+'''
 def send_frame(url, frame, timeData):
     _, img_encoded = cv2.imencode(".jpg", frame)
     requests.post(url, data={'time': timeData, 'cameraID': cameraID}, files={'frame': ('image.jpg', img_encoded, 'image/jpeg')})
 
 def send_original(frame, timeData):
-    OriginFrame = frame.copy()
+    # print(cameraID)
+    OriginURL = "http://bangwol08.iptime.org:7777/camera/original"
+
     '''
-    OriginURL = "http://bangwol08.iptime.org:20002/camera/original"
-    _, img_encoded = cv2.imencode(".jpg", OriginFrame)
+    _, img_encoded = cv2.imencode(".jpg", frame)
+    # requests.post(OriginURL, data={'time': timeData, 'cameraID': cameraID}, files={'frame': ('image.jpg', img_encoded, 'image/jpeg')}, verify=False)
     
-    requests.post(OriginURL, data={'time': timeData, 'cameraID': cameraID},
-                  files={'frame': ('image.jpg', img_encoded, 'image/jpeg')})
+    session.post(OriginURL, data={'time': timeData, 'cameraID': cameraID}, files={'frame': ('image.jpg', img_encoded, 'image/jpeg')}, verify=False)
     '''
     cv2.imwrite(f'camera/original/{timeData}.jpg', frame)
 
@@ -79,12 +91,13 @@ def send_process(frame, timeData, face_detector, count, tick, constancy, instabi
                 img_mosaic[start_y:start_y + end_y, start_x:start_x + end_x] = mosaic
                 output = img_mosaic
             frame = output
+            
             '''
-            ProURL = "http://bangwol08.iptime.org:20002/camera/process"
+            ProURL = "http://bangwol08.iptime.org:7777/camera/process"
             _, img_encoded = cv2.imencode(".jpg", frame)
-            requests.post(ProURL, data={'time': timeData, 'cameraID': cameraID},
-                          files={'frame': ('image.jpg', img_encoded, 'image/jpeg')})
-                          '''
+            # requests.post(ProURL, data={'time': timeData, 'cameraID': cameraID}, files={'frame': ('image.jpg', img_encoded, 'image/jpeg')}, verify=False)
+            session.post(ProURL, data={'time': timeData, 'cameraID': cameraID}, files={'frame': ('image.jpg', img_encoded, 'image/jpeg')}, verify=False)
+            '''
             cv2.imwrite(f'camera/process/{timeData}.jpg', output)
             process_thread_is_running = False
 
@@ -111,11 +124,11 @@ def process_backup(frame, timeData):
                 output = img_mosaic
             frame = output
             '''
-            ProURL = "http://bangwol08.iptime.org:20002/camera/process"
+            ProURL = "http://bangwol08.iptime.org:7777/camera/process"
 
             _, img_encoded = cv2.imencode(".jpg", frame)
-            requests.post(ProURL, data={'time': timeData, 'cameraID': cameraID},
-                          files={'frame': ('image.jpg', img_encoded, 'image/jpeg')})
+            # requests.post(ProURL, data={'time': timeData, 'cameraID': cameraID}, files={'frame': ('image.jpg', img_encoded, 'image/jpeg')}, verify=False)
+            session.post(ProURL, data={'time': timeData, 'cameraID': cameraID}, files={'frame': ('image.jpg', img_encoded, 'image/jpeg')}, verify=False)
             '''
             cv2.imwrite(f'camera/process/{timeData}.jpg', output)
             process_backup_is_running = False
@@ -134,7 +147,7 @@ if __name__ == '__main__':
     if not cap.isOpened():
         print('Error: Camera is not open.')
         exit()
-    results = []
+    
     # if Camera is open --> Start to send original / process frame
     while cap.isOpened():
         # camera Id
@@ -153,17 +166,20 @@ if __name__ == '__main__':
             if not hasFrame:
                 break
             timeData = time.time()
+            # Original frame 쓰레드 제거 후 메인에서 돌리고, process만 쓰레드로 넘김 / 실행 필요
             send_original_thread = threading.Thread(target=send_original, args=(frame, timeData))
+            # send_original(frame, timeData)
             send_process_thread = threading.Thread(target=send_process, args=(frame, timeData, face_detector, count, tick, constancy, instability))
             process_backup_thread = threading.Thread(target=process_backup, args = (frame, timeData))
             
             send_original_thread.start()
+
             # if send_process_thread is running --> pass
             if not process_thread_is_running:
                 process_thread_is_running = True
                 send_process_thread.start()
             elif not process_backup_is_running:
-                process_thread_is_running = True
+                process_backup_is_running = True
                 process_backup_thread.start()
         cap.release()
         
